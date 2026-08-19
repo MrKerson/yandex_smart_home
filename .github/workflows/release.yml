@@ -16,14 +16,14 @@ jobs:
 
       - name: Prepare release
         run: |
-          cd ${{ github.workspace }}/custom_components/yandex_smart_home
-          zip -r yandex_smart_home.zip ./
+          cd ${{ github.workspace }}/custom_components/yandex_smart_home_custom
+          zip -r yandex_smart_home_custom.zip ./
 
       - name: Upload zip
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ github.workspace }}/custom_components/yandex_smart_home/yandex_smart_home.zip
-          asset_name: yandex_smart_home.zip
+          file: ${{ github.workspace }}/custom_components/yandex_smart_home_custom/yandex_smart_home_custom.zip
+          asset_name: yandex_smart_home_custom.zip
           tag: ${{ github.ref }}
           overwrite: true
