@@ -40,6 +40,15 @@ _ACTION_EDIT = "edit"
 _ACTION_DELETE = "delete"
 
 
+def _combined_member_entities(definitions: ConfigType) -> set[str]:
+    """Return all entities already used as members of combined devices."""
+    return {
+        str(entity_id)
+        for definition in definitions.values()
+        for entity_id in definition.get(CONF_COMBINED_ENTITIES, [])
+    }
+
+
 class CombinedOptionsFlowMixin:
     """Add a UI builder for combined devices to the integration options flow."""
 
@@ -172,6 +181,7 @@ class CombinedOptionsFlowMixin:
                     errors["base"] = "combined_base_already_used"
                 else:
                     old_base = self._combined_selected
+                    old_members = set(existing.get(CONF_COMBINED_ENTITIES, []))
                     if old_base and old_base != base_entity:
                         definitions.pop(old_base, None)
 
@@ -190,10 +200,13 @@ class CombinedOptionsFlowMixin:
                     exposed.add(base_entity)
                     self._options[CONF_COMBINED_EXPOSED] = sorted(exposed)
 
+                    # Members of a combined device must not also be exposed as standalone devices.
+                    # Remove previous and current members from the regular list and then add only
+                    # the base entity that represents the combined Yandex device.
                     filter_config = dict(self._options.get(CONF_FILTER, {}))
                     include_entities = set(filter_config.get(CONF_INCLUDE_ENTITIES, []))
-                    if old_base:
-                        include_entities.discard(old_base)
+                    include_entities.difference_update(old_members)
+                    include_entities.difference_update(entities)
                     include_entities.add(base_entity)
                     self._options[CONF_FILTER] = {CONF_INCLUDE_ENTITIES: sorted(include_entities)}
 
@@ -235,6 +248,7 @@ class CombinedOptionsFlowMixin:
         combined: ConfigType = self._options.get(CONF_COMBINED_DEVICES, {})
         errors: dict[str, str] = {}
         all_combined_base_entities = set(combined)
+        all_combined_members = _combined_member_entities(combined)
         explicit_entities: set[str] = set()
 
         if entity_filter_config := self._options.get(CONF_FILTER):
@@ -247,11 +261,11 @@ class CombinedOptionsFlowMixin:
                         [s.entity_id for s in self.hass.states.async_all() if entity_filter(s.entity_id)]
                     )
 
-        explicit_entities -= all_combined_base_entities
+        explicit_entities -= all_combined_members
         combined_exposed = set(self._options.get(CONF_COMBINED_EXPOSED, [])) & all_combined_base_entities
 
         if user_input is not None:
-            normal_entities = set(user_input.get(CONF_ENTITIES, []))
+            normal_entities = set(user_input.get(CONF_ENTITIES, [])) - all_combined_members
             combined_exposed = set(user_input.get(CONF_COMBINED_EXPOSED, [])) & all_combined_base_entities
 
             if normal_entities or combined_exposed:
