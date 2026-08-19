@@ -26,7 +26,9 @@ from .const import (
     CONF_COMBINED_KIND,
     CONF_COMBINED_SELECTED,
     CONF_FILTER,
+    CONF_FILTER_SOURCE,
     CONF_UI_ENTITY_CONFIG,
+    EntityFilterSource,
 )
 
 if TYPE_CHECKING:
@@ -195,11 +197,16 @@ class CombinedOptionsFlowMixin:
                     include_entities.add(base_entity)
                     self._options[CONF_FILTER] = {CONF_INCLUDE_ENTITIES: sorted(include_entities)}
 
+                    # With UI-based exposure, immediately show the normal transfer page.
+                    # The newly created combined device is already selected there.
+                    if self._options.get(CONF_FILTER_SOURCE) == EntityFilterSource.CONFIG_ENTRY:
+                        return await self.async_step_include_entities()
+
                     return await self.async_step_done()
 
         kind_options = [
-            SelectOptionDict(value=COMBINED_KIND_SWITCH, label="Многоклавишный выключатель"),
-            SelectOptionDict(value=COMBINED_KIND_SENSOR, label="Объединенные датчики"),
+            SelectOptionDict(value=COMBINED_KIND_SWITCH, label="Многоклавишный выключатель (экспериментально)"),
+            SelectOptionDict(value=COMBINED_KIND_SENSOR, label="Датчики / свойства в одном устройстве"),
         ]
 
         return self.async_show_form(
