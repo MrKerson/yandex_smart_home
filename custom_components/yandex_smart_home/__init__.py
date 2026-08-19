@@ -29,6 +29,7 @@ from .const import (
     CONF_NOTIFIER_SKILL_ID,
     CONF_NOTIFIER_USER_ID,
     CONF_SKILL,
+    CONF_UI_ENTITY_CONFIG,
     CONF_USER_ID,
     DOMAIN,
     ConnectionType,
@@ -105,7 +106,8 @@ class YandexSmartHome:
 
     async def async_setup_entry(self, entry: ConfigEntry) -> bool:
         """Set up a config entry."""
-        entity_config = self._yaml_config.get(CONF_ENTITY_CONFIG)
+        entity_config: ConfigType = dict(self._yaml_config.get(CONF_ENTITY_CONFIG) or {})
+        entity_config.update(entry.options.get(CONF_UI_ENTITY_CONFIG, {}))
 
         entity_filter: EntityFilter | None = None
         if entry.options.get(CONF_FILTER_SOURCE) == EntityFilterSource.YAML:
