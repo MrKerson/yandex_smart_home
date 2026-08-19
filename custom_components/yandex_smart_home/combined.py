@@ -53,6 +53,15 @@ def unique_entities(entities: Iterable[str]) -> list[str]:
     return list(dict.fromkeys(str(entity_id) for entity_id in entities))
 
 
+def _sensor_property_type(hass: HomeAssistant, entity_id: str) -> str | None:
+    """Return a Yandex property type for a Home Assistant sensor entity."""
+    state = hass.states.get(entity_id)
+    if state is None:
+        return None
+
+    return _SENSOR_PROPERTY_TYPES.get(str(state.attributes.get("device_class", "")))
+
+
 def validate_combined_definition(hass: HomeAssistant, definition: ConfigType) -> str | None:
     """Validate a UI combined device definition and return an error key."""
     entities = unique_entities(definition.get(CONF_COMBINED_ENTITIES, []))
@@ -77,12 +86,14 @@ def validate_combined_definition(hass: HomeAssistant, definition: ConfigType) ->
 
     if kind == COMBINED_KIND_SENSOR:
         property_types: list[str] = []
-        for entity_id in entities:
-            state = hass.states.get(entity_id)
-            if state is None:
-                continue
+        for index, entity_id in enumerate(entities):
+            property_type = _sensor_property_type(hass, entity_id)
 
-            property_type = _SENSOR_PROPERTY_TYPES.get(str(state.attributes.get("device_class", "")))
+            # The first entity is the base Yandex device. It may be a thermostat,
+            # humidifier, sensor, etc. If it is itself a supported sensor, include
+            # its value as the first property, matching the documented YAML recipe.
+            if property_type is None and index == 0:
+                continue
             if property_type is None:
                 return "combined_unsupported_sensor"
 
@@ -90,6 +101,9 @@ def validate_combined_definition(hass: HomeAssistant, definition: ConfigType) ->
                 return "combined_duplicate_property"
 
             property_types.append(property_type)
+
+        if not property_types:
+            return "combined_unsupported_sensor"
 
         return None
 
@@ -138,15 +152,10 @@ def build_combined_entity_config(hass: HomeAssistant, definition: ConfigType) ->
         return config
 
     if kind == COMBINED_KIND_SENSOR:
-        config[CONF_TYPE] = "devices.types.sensor"
         properties: list[ConfigType] = []
 
         for entity_id in entities:
-            state = hass.states.get(entity_id)
-            if state is None:
-                continue
-
-            property_type = _SENSOR_PROPERTY_TYPES.get(str(state.attributes.get("device_class", "")))
+            property_type = _sensor_property_type(hass, entity_id)
             if property_type is None:
                 continue
 
