@@ -18,14 +18,11 @@ from .const import (
     CONF_ENTITY_PROPERTIES,
     CONF_ENTITY_PROPERTY_ENTITY,
     CONF_ENTITY_PROPERTY_TYPE,
-    CONF_STATE_UNKNOWN,
-    CONF_TURN_OFF,
-    CONF_TURN_ON,
 )
 
 COMBINED_KIND_SWITCH = "switch"
 COMBINED_KIND_SENSOR = "sensor"
-MAX_COMBINED_SWITCH_CHANNELS = 8
+MAX_COMBINED_SWITCH_CHANNELS = 2
 
 # Home Assistant sensor device_class -> Yandex float property instance.
 _SENSOR_PROPERTY_TYPES: dict[str, str] = {
@@ -122,33 +119,31 @@ def build_combined_entity_config(hass: HomeAssistant, definition: ConfigType) ->
         config[CONF_ROOM] = room
 
     if kind == COMBINED_KIND_SWITCH:
-        # We intentionally suppress the automatically discovered on_off capability.
-        # Each source becomes an equal channel toggle instead.
-        config.update(
-            {
-                CONF_TYPE: "devices.types.switch",
-                CONF_STATE_UNKNOWN: True,
-                CONF_TURN_ON: False,
-                CONF_TURN_OFF: False,
-            }
-        )
+        # Yandex public Smart Home API has only one standard on_off instance per
+        # device and does not support arbitrary channel_1/channel_2 toggle
+        # instances. Keep the first HA entity as the normal on_off capability.
+        # For a second entity use the officially supported `backlight` toggle so
+        # the combined device is accepted by Yandex instead of being silently
+        # discarded during discovery.
+        config[CONF_TYPE] = "devices.types.switch"
 
-        toggles: ConfigType = {}
-        for index, entity_id in enumerate(entities, start=1):
+        if len(entities) > 1:
+            entity_id = entities[1]
             domain = entity_id.split(".", 1)[0]
-            toggles[f"channel_{index}"] = {
-                CONF_ENTITY_CUSTOM_CAPABILITY_STATE_ENTITY_ID: entity_id,
-                CONF_ENTITY_CUSTOM_TOGGLE_TURN_ON: {
-                    "action": f"{domain}.turn_on",
-                    "target": {"entity_id": entity_id},
-                },
-                CONF_ENTITY_CUSTOM_TOGGLE_TURN_OFF: {
-                    "action": f"{domain}.turn_off",
-                    "target": {"entity_id": entity_id},
-                },
+            config[CONF_ENTITY_CUSTOM_TOGGLES] = {
+                "backlight": {
+                    CONF_ENTITY_CUSTOM_CAPABILITY_STATE_ENTITY_ID: entity_id,
+                    CONF_ENTITY_CUSTOM_TOGGLE_TURN_ON: {
+                        "action": f"{domain}.turn_on",
+                        "target": {"entity_id": entity_id},
+                    },
+                    CONF_ENTITY_CUSTOM_TOGGLE_TURN_OFF: {
+                        "action": f"{domain}.turn_off",
+                        "target": {"entity_id": entity_id},
+                    },
+                }
             }
 
-        config[CONF_ENTITY_CUSTOM_TOGGLES] = toggles
         return config
 
     if kind == COMBINED_KIND_SENSOR:
