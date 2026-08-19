@@ -1,13 +1,13 @@
 {
-  "domain": "yandex_smart_home",
-  "name": "Yandex Smart Home",
+  "domain": "yandex_smart_home_custom",
+  "name": "Yandex Smart Home Custom",
   "after_dependencies": ["local_calendar"],
-  "codeowners": ["@dext0r"],
+  "codeowners": ["@MrKerson"],
   "config_flow": true,
   "dependencies": ["http"],
   "documentation": "https://docs.yaha-cloud.ru/v1.1.x/",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/dext0r/yandex_smart_home/issues",
+  "issue_tracker": "https://github.com/MrKerson/yandex_smart_home/issues",
   "requirements": [],
-  "version": "1.1.2"
+  "version": "1.1.2-custom.1"
 }
