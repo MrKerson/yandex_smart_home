@@ -15,9 +15,11 @@ from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 import voluptuous as vol
 
+from .combined import build_combined_entity_config
 from .config_schema import YANDEX_SMART_HOME_SCHEMA
 from .const import (
     CONF_CLOUD_INSTANCE,
+    CONF_COMBINED_DEVICES,
     CONF_CONNECTION_TYPE,
     CONF_DEVICES_DISCOVERED,
     CONF_ENTITY_CONFIG,
@@ -107,7 +109,19 @@ class YandexSmartHome:
     async def async_setup_entry(self, entry: ConfigEntry) -> bool:
         """Set up a config entry."""
         entity_config: ConfigType = dict(self._yaml_config.get(CONF_ENTITY_CONFIG) or {})
-        entity_config.update(entry.options.get(CONF_UI_ENTITY_CONFIG, {}))
+
+        # Rebuild combined-device entity_config from the stored definitions on
+        # every setup. This keeps existing UI-created devices compatible when the
+        # builder implementation changes (for example after removing unsupported
+        # Yandex capability instances).
+        ui_entity_config: ConfigType = dict(entry.options.get(CONF_UI_ENTITY_CONFIG, {}))
+        for base_entity, definition in entry.options.get(CONF_COMBINED_DEVICES, {}).items():
+            try:
+                ui_entity_config[str(base_entity)] = build_combined_entity_config(self._hass, definition)
+            except (KeyError, TypeError, ValueError):
+                _LOGGER.exception("Failed to rebuild combined device %s", base_entity)
+
+        entity_config.update(ui_entity_config)
 
         entity_filter: EntityFilter | None = None
         if entry.options.get(CONF_FILTER_SOURCE) == EntityFilterSource.YAML:
