@@ -2,7 +2,5 @@
   "name": "Yandex Smart Home Custom",
   "homeassistant": "2025.12.0",
   "country": ["RU", "BY"],
-  "render_readme": true,
-  "zip_release": true,
-  "filename": "yandex_smart_home_custom.zip"
+  "render_readme": true
 }
