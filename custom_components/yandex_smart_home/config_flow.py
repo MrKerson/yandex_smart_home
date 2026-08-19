@@ -31,6 +31,7 @@ from homeassistant.setup import async_setup_component
 import voluptuous as vol
 
 from . import DOMAIN, cloud
+from .combined_flow import CombinedOptionsFlowMixin
 from .const import (
     CLOUD_BASE_URL,
     CONF_CLOUD_INSTANCE,
@@ -613,7 +614,7 @@ class ConfigFlowHandler(BaseFlowHandler, ConfigFlow, domain=DOMAIN):
         return OptionsFlowHandler(config_entry)
 
 
-class OptionsFlowHandler(OptionsFlow, BaseFlowHandler):
+class OptionsFlowHandler(CombinedOptionsFlowMixin, OptionsFlow, BaseFlowHandler):
     """Handle a options flow for Yandex Smart Home."""
 
     def __init__(self, entry: ConfigEntry):
@@ -626,7 +627,7 @@ class OptionsFlowHandler(OptionsFlow, BaseFlowHandler):
 
     async def async_step_init(self, _: ConfigType | None = None) -> ConfigFlowResult:
         """Show menu."""
-        options = ["expose_settings"]
+        options = ["expose_settings", "combined_devices"]
         match self._data[CONF_CONNECTION_TYPE]:
             case ConnectionType.CLOUD:
                 options += ["cloud_credentials", "context_user"]
