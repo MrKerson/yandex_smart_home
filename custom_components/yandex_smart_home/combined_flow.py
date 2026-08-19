@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import CONF_ENTITIES, CONF_NAME, CONF_ROOM
 from homeassistant.helpers import selector
@@ -29,6 +29,10 @@ from .const import (
     CONF_UI_ENTITY_CONFIG,
 )
 
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigFlowResult
+    from homeassistant.core import HomeAssistant
+
 _ACTION_CREATE = "create"
 _ACTION_EDIT = "edit"
 _ACTION_DELETE = "delete"
@@ -40,7 +44,19 @@ class CombinedOptionsFlowMixin:
     _combined_action: str | None = None
     _combined_selected: str | None = None
 
-    async def async_step_combined_devices(self, user_input: ConfigType | None = None):
+    if TYPE_CHECKING:
+        hass: HomeAssistant
+        _options: ConfigType
+
+        def async_show_form(self, *args: Any, **kwargs: Any) -> ConfigFlowResult:
+            """Type stub for FlowHandler.async_show_form."""
+            ...
+
+        async def async_step_done(self, user_input: ConfigType | None = None) -> ConfigFlowResult:
+            """Type stub for the concrete options flow completion step."""
+            ...
+
+    async def async_step_combined_devices(self, user_input: ConfigType | None = None) -> ConfigFlowResult:
         """Choose an action for combined devices."""
         combined = self._options.get(CONF_COMBINED_DEVICES, {})
 
@@ -75,16 +91,9 @@ class CombinedOptionsFlowMixin:
                     )
                 }
             ),
-            description_placeholders={
-                "combined_help": (
-                    "Сборка работает по тому же принципу, что entity_config в документации: "
-                    "один существующий объект становится основным, а остальные функции/датчики "
-                    "добавляются к нему. Основной объект автоматически добавляется в список передачи."
-                )
-            },
         )
 
-    async def async_step_combined_device_select(self, user_input: ConfigType | None = None):
+    async def async_step_combined_device_select(self, user_input: ConfigType | None = None) -> ConfigFlowResult:
         """Select an existing combined device."""
         combined: ConfigType = self._options.get(CONF_COMBINED_DEVICES, {})
         if not combined:
@@ -132,7 +141,7 @@ class CombinedOptionsFlowMixin:
             ),
         )
 
-    async def async_step_combined_device_form(self, user_input: ConfigType | None = None):
+    async def async_step_combined_device_form(self, user_input: ConfigType | None = None) -> ConfigFlowResult:
         """Create or edit a combined device."""
         errors: dict[str, str] = {}
         existing: ConfigType = {}
@@ -157,7 +166,6 @@ class CombinedOptionsFlowMixin:
             else:
                 base_entity = entities[0]
 
-                # A base entity can represent only one UI-combined device.
                 if base_entity in definitions and base_entity != self._combined_selected:
                     errors["base"] = "combined_base_already_used"
                 else:
@@ -180,8 +188,6 @@ class CombinedOptionsFlowMixin:
                     exposed.add(base_entity)
                     self._options[CONF_COMBINED_EXPOSED] = sorted(exposed)
 
-                    # The existing integration filter still operates on Home Assistant entities.
-                    # A combined device therefore exposes its base entity, exactly like the YAML recipe.
                     filter_config = dict(self._options.get(CONF_FILTER, {}))
                     include_entities = set(filter_config.get(CONF_INCLUDE_ENTITIES, []))
                     if old_base:
@@ -217,12 +223,9 @@ class CombinedOptionsFlowMixin:
             errors=errors,
         )
 
-    async def async_step_include_entities(self, user_input: ConfigType | None = None):
+    async def async_step_include_entities(self, user_input: ConfigType | None = None) -> ConfigFlowResult:
         """Choose normal entities and UI-combined devices to expose."""
         combined: ConfigType = self._options.get(CONF_COMBINED_DEVICES, {})
-        if not combined:
-            return await super().async_step_include_entities(user_input)
-
         errors: dict[str, str] = {}
         all_combined_base_entities = set(combined)
         explicit_entities: set[str] = set()
@@ -237,7 +240,6 @@ class CombinedOptionsFlowMixin:
                         [s.entity_id for s in self.hass.states.async_all() if entity_filter(s.entity_id)]
                     )
 
-        # Combined base entities get their own selector below and are hidden from the normal defaults.
         explicit_entities -= all_combined_base_entities
         combined_exposed = set(self._options.get(CONF_COMBINED_EXPOSED, [])) & all_combined_base_entities
 
@@ -256,29 +258,30 @@ class CombinedOptionsFlowMixin:
             explicit_entities.clear()
             combined_exposed.clear()
 
-        combined_options = [
-            SelectOptionDict(
-                value=base_entity,
-                label=f"{definition.get(CONF_NAME, base_entity)} ({base_entity})",
+        schema: dict[Any, Any] = {
+            vol.Required(CONF_ENTITIES, default=sorted(explicit_entities)): selector.EntitySelector(
+                selector.EntitySelectorConfig(multiple=True)
             )
-            for base_entity, definition in combined.items()
-        ]
+        }
+
+        if combined:
+            combined_options = [
+                SelectOptionDict(
+                    value=base_entity,
+                    label=f"{definition.get(CONF_NAME, base_entity)} ({base_entity})",
+                )
+                for base_entity, definition in combined.items()
+            ]
+            schema[vol.Optional(CONF_COMBINED_EXPOSED, default=sorted(combined_exposed))] = SelectSelector(
+                SelectSelectorConfig(
+                    mode=SelectSelectorMode.DROPDOWN,
+                    multiple=True,
+                    options=combined_options,
+                )
+            )
 
         return self.async_show_form(
             step_id="include_entities",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_ENTITIES, default=sorted(explicit_entities)): selector.EntitySelector(
-                        selector.EntitySelectorConfig(multiple=True)
-                    ),
-                    vol.Optional(CONF_COMBINED_EXPOSED, default=sorted(combined_exposed)): SelectSelector(
-                        SelectSelectorConfig(
-                            mode=SelectSelectorMode.DROPDOWN,
-                            multiple=True,
-                            options=combined_options,
-                        )
-                    ),
-                }
-            ),
+            data_schema=vol.Schema(schema),
             errors=errors,
         )
