@@ -218,7 +218,7 @@ class CombinedOptionsFlowMixin:
                     return await self.async_step_done()
 
         kind_options = [
-            SelectOptionDict(value=COMBINED_KIND_SWITCH, label="Многоклавишный выключатель (экспериментально)"),
+            SelectOptionDict(value=COMBINED_KIND_SWITCH, label="Объединенный выключатель (до 2 каналов)"),
             SelectOptionDict(value=COMBINED_KIND_SENSOR, label="Датчики / свойства в одном устройстве"),
         ]
 
