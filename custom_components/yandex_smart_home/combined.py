@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from homeassistant.const import CONF_NAME, CONF_ROOM, CONF_STATE_UNKNOWN, CONF_TYPE
+from homeassistant.const import CONF_NAME, CONF_ROOM, CONF_TYPE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
@@ -18,6 +18,7 @@ from .const import (
     CONF_ENTITY_PROPERTIES,
     CONF_ENTITY_PROPERTY_ENTITY,
     CONF_ENTITY_PROPERTY_TYPE,
+    CONF_STATE_UNKNOWN,
     CONF_TURN_OFF,
     CONF_TURN_ON,
 )
